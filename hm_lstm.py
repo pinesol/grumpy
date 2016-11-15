@@ -22,6 +22,7 @@ class HmLstmStateTuple(_HmLstmStateTuple):
     return c.dtype
 
 
+  
 # Using a tuple state for simplicity
 # TODO add forget_bias?
 class HmLstmCell(tf.nn.rnn_cell.RNNCell):
@@ -42,11 +43,12 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
   # In the last layer L, the top-down connection is ignored
   # In the first layer, we use h^0_t = x^t.
   def __call__(self, inputs, state, scope=None):
+    h_prev, h_top, h_bottom, z_b, z_t = inputs
     c, h, z = state
 
     # each of the 4 gates is num_unites long, plus one for the z.
-    matrix_len = (4 * self._num_units) + 1
-    matrix_dims = [matrix_len, matrix_len]
+    num_concated_rows = (4 * self._num_units) + 1
+    matrix_dims = [num_concated_rows, num_concated_rows]
 
     # Unlike regular LSTM, it doesn't appear to concatenate the inputs and h.
    
@@ -55,15 +57,27 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
     # scope: optional name for the variable scope, defaults to "HmLstmCell"
     with vs.variable_scope(scope or type(self).__name__):  # "HmLstmCell"
       U_curr = vs.get_variable("U_curr", matrix_dims, dtype=tf.float64)
-      U_bottom = vs.get_variable("U_bottom", matrix_dims, dtype=tf.float64)
-      W_top = vs.get_variable("W_top", matrix_dims, dtype=tf.float64)
+      U_top = vs.get_variable("U_top", matrix_dims, dtype=tf.float64)
+      W_bottom = vs.get_variable("W_bottom", matrix_dims, dtype=tf.float64)
+      bias = vs.get_variable("bias", [num_concated_rows], dtype=tf.float64) 
 
-      # TODO z's
-      # TODO gates
-    
+      # TODO lots of these computations can be skipped dependings on z_b and z_t.
+      
+      s_curr = tf.matmul(U_curr, h_prev)
+      s_top = tf.mul(z_t, tf.matmul(U_top, h_top)))
+      s_bottom = tf.mul(z_b, tf.matmul(W_bottom, h_bottom))
+
+      f_logits, i_logits, o_logits, g_logits, z_tilda = tf.split(1, 5, s_curr + s_top + s_bottom + bias)
+
+      f = tf.sigmoid(f_logits)
+      i = tf.sigmoid(i_logits)
+      o = tf.sigmoid(o_logits)
+      g = tf.tanh(g_logits)
+      # TODO This is wrong. The real z is a hard sigmoid that's translated into a step function during the foward pass.
+      new_z = tf.sigmoid(z_tilda)
+
       new_c = [] #TODO
       new_h = [] #TODO
-      new_z = 1 # TODO start with sigmoid, then figure out the hard sigmoid.
 
       new_state = LSTMStateTuple(new_c, new_h, new_z)
       return new_h, new_state
