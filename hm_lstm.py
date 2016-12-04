@@ -1,4 +1,5 @@
 
+import collections
 import tensorflow as tf
 from tensorflow.python.ops import variable_scope as vs
 
@@ -21,15 +22,11 @@ class HmLstmStateTuple(_HmLstmStateTuple):
                       (str(c.dtype), str(h.dtype)))
     return c.dtype
 
-
   
-# Using a tuple state for simplicity
-# TODO add forget_bias?
 class HmLstmCell(tf.nn.rnn_cell.RNNCell):
   def __init__(self, num_units):
     # self._num_units determines the size of c and h.
     self._num_units = num_units
-
 
   @property
   def state_size(self):
@@ -39,49 +36,74 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
   def output_size(self):
     return self._num_units
 
-  # From the paper:
-  # In the last layer L, the top-down connection is ignored
-  # In the first layer, we use h^0_t = x^t.
   def __call__(self, inputs, state, scope=None):
-    h_prev, h_top, h_bottom, z_b, z_t = inputs
-    c, h, z = state
+    # In the last layer L, the top-down connection is ignored
+    # In the first layer, we use h^0_t = x^t.    
+    # vars from different layers.
+    # At the lowest level, h_bottom is an input vector.
+    h_top_prev, h_bottom, z_bottom = inputs
+    # vars from the previous time step on the same lyayer
+    c_prev, h_prev, z_prev = state
 
-    # each of the 4 gates is num_unites long, plus one for the z.
-    num_concated_rows = (4 * self._num_units) + 1
-    matrix_dims = [num_concated_rows, num_concated_rows]
+    gate_slice_sizes = [self._num_units, self._num_units, self._num_units, self._num_units, 1]
+    num_rows = sum(gate_slice_sizes)
 
-    # Unlike regular LSTM, it doesn't appear to concatenate the inputs and h.
-   
-    # inputs: (h_prev, h_top, h_bottom, z_b, z_t)
-    # state: HmLstmTuple (c, h, z)
     # scope: optional name for the variable scope, defaults to "HmLstmCell"
     with vs.variable_scope(scope or type(self).__name__):  # "HmLstmCell"
-      U_curr = vs.get_variable("U_curr", matrix_dims, dtype=tf.float64)
-      U_top = vs.get_variable("U_top", matrix_dims, dtype=tf.float64)
-      W_bottom = vs.get_variable("W_bottom", matrix_dims, dtype=tf.float64)
-      bias = vs.get_variable("bias", [num_concated_rows], dtype=tf.float64) 
+      # Matrix U_l^l
+      U_curr = vs.get_variable("U_curr", [num_rows, len(h_prev)], dtype=tf.float64)
+      # Matrix U_{l+1}^l
+      # TODO This imples that the U matrix there has the same dimensionality as the
+      # one used in equation 5. but that would only be true if you forced the h vectors
+      # on the above layer to be equal in size to the ones below them. Is that a real restriction?
+      # Or am I misunderstanding?
+      U_top = vs.get_variable("U_top", [num_rows, len(h_bottom)], dtype=tf.float64)
+      # Matrix W_{l-1}^l
+      W_bottom = vs.get_variable("W_bottom", [num_rows, len(h_bottom)], dtype=tf.float64)
+      # b_l
+      bias = vs.get_variable("bias", [num_rows], dtype=tf.float64) 
 
-      # TODO lots of these computations can be skipped dependings on z_b and z_t.
-      
       s_curr = tf.matmul(U_curr, h_prev)
-      s_top = tf.mul(z_t, tf.matmul(U_top, h_top)))
-      s_bottom = tf.mul(z_b, tf.matmul(W_bottom, h_bottom))
+      s_top = z_prev * tf.matmul(U_top, h_top)
+      s_bottom = z_bottom * tf.matmul(W_bottom, h_bottom)
+      gate_logits = s_curr + s_top + s_bottom + bias
+      
+      f_logits, i_logits, o_logits, g_logits, z_t_logit = tf.split_v(0, gate_slice_sizes, gate_logits)
 
-      f_logits, i_logits, o_logits, g_logits, z_tilda = tf.split(1, 5, s_curr + s_top + s_bottom + bias)
-
+      # TODO check that z_t_logit is a scalar, or squeeze it so it becomes one
+      assert z_t_logit.get_shape() == [], 'z_t_logit should be scalar: {}'.format(z_t_logit)
+      
       f = tf.sigmoid(f_logits)
       i = tf.sigmoid(i_logits)
       o = tf.sigmoid(o_logits)
       g = tf.tanh(g_logits)
-      # TODO This is wrong. The real z is a hard sigmoid that's translated into a step function during the foward pass.
-      new_z = tf.sigmoid(z_tilda)
 
-      new_c = [] #TODO
-      new_h = [] #TODO
+      # TODO commenting out all this until we figure out how to do the fancy gradient stuff.
+      # Just doing the 'update' move all the time, which is basically normal LSTM.
+      c_new = f * c_prev + i * g
+      h_new = o * tf.tanh(c_new)
+      z_new = tf.sigmoid(z_t_logit) # Unused at the moment. change to hard sigmoid.
+      
+      # slope = 1 # TODO slope annealing trick
+      # z_tilda = tf.maximum(0, tf.minimum(1, (slope * z_t_logit) / 2))
+      # # TODO you have to do something special with the gradient here.
+      # z_new = 1 if z_tilda > 0.5 else 0
+      
+      # if z_prev == 0 and z_below == 1:  # UPDATE
+      #   c_new = f * c_prev + i * g
+      #   h_new = o * tf.tanh(c_new)
+      # elif z_prev == 0 and z_below == 0:  # COPY
+      #   c_new = c_prev
+      #   h_new = h_prev
+      # elif z_prev == 1:  # FLUSH
+      #   c_new = i * g
+      #   h_new = o * tf.tanh(c_new)
+      # else:
+      #   raise Exception('Invalid z values. z_prev: {0:.4f}, z_below: {1:.4f}'.format(
+      #     z_prev, z_below))
 
-      new_state = LSTMStateTuple(new_c, new_h, new_z)
-      return new_h, new_state
-
+    state_new = LSTMStateTuple(c_new, h_new, z_new)
+    return h_new, state_new
 
 
 # from the original rnn_cell.py in tensorflow
