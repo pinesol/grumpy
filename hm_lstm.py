@@ -1,4 +1,6 @@
 
+# Note: Requires Tensorflow 0.12
+
 import collections
 import tensorflow as tf
 from tensorflow.python.ops import variable_scope as vs
@@ -36,12 +38,16 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
   def output_size(self):
     return self._num_units
 
+  # TODO make the type changeable instead of defaulting to float32?
+  
+  # All RNNs return (output, new_state). For this type of LSTM, its 'output' is still its h vector,
+  # and it's cell state is a c,h,z tuple.
   def __call__(self, inputs, state, scope=None):
     # In the last layer L, the top-down connection is ignored
     # In the first layer, we use h^0_t = x^t.    
     # vars from different layers.
     # At the lowest level, h_bottom is an input vector.
-    h_top_prev, h_bottom, z_bottom = inputs
+    h_bottom, z_bottom, h_top_prev = inputs
     # vars from the previous time step on the same lyayer
     c_prev, h_prev, z_prev = state
 
@@ -51,28 +57,35 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
     # scope: optional name for the variable scope, defaults to "HmLstmCell"
     with vs.variable_scope(scope or type(self).__name__):  # "HmLstmCell"
       # Matrix U_l^l
-      U_curr = vs.get_variable("U_curr", [num_rows, len(h_prev)], dtype=tf.float64)
+      U_curr = vs.get_variable("U_curr", [h_prev.get_shape()[1], num_rows], dtype=tf.float32)
       # Matrix U_{l+1}^l
       # TODO This imples that the U matrix there has the same dimensionality as the
       # one used in equation 5. but that would only be true if you forced the h vectors
       # on the above layer to be equal in size to the ones below them. Is that a real restriction?
       # Or am I misunderstanding?
-      U_top = vs.get_variable("U_top", [num_rows, len(h_bottom)], dtype=tf.float64)
+      U_top = vs.get_variable("U_top", [h_bottom.get_shape()[1], num_rows], dtype=tf.float32)
       # Matrix W_{l-1}^l
-      W_bottom = vs.get_variable("W_bottom", [num_rows, len(h_bottom)], dtype=tf.float64)
+      W_bottom = vs.get_variable("W_bottom", [h_bottom.get_shape()[1], num_rows],
+                                 dtype=tf.float32)
       # b_l
-      bias = vs.get_variable("bias", [num_rows], dtype=tf.float64) 
+      bias = vs.get_variable("bias", [num_rows], dtype=tf.float32)
 
-      s_curr = tf.matmul(U_curr, h_prev)
-      s_top = z_prev * tf.matmul(U_top, h_top)
-      s_bottom = z_bottom * tf.matmul(W_bottom, h_bottom)
+      s_curr = tf.matmul(h_prev, U_curr)
+      s_top = z_prev * tf.matmul(h_top_prev, U_top)
+#      print('h_bottom dimensions: {}'.format(h_bottom.get_shape())) # TODO      
+#      print('W_bottom dimensions: {}'.format(W_bottom.get_shape())) # TODO
+#      print('z_bottom dimensions: {}'.format(z_bottom.get_shape())) # TODO
+# TODO this is printing out as having ?, ? shape....
+#      print('z_prev dimensions: {}'.format(z_prev.get_shape())) # TODO
+      s_bottom = z_bottom * tf.matmul(h_bottom, W_bottom)
       gate_logits = s_curr + s_top + s_bottom + bias
-      
-      f_logits, i_logits, o_logits, g_logits, z_t_logit = tf.split_v(0, gate_slice_sizes, gate_logits)
 
+#TODO      print('gate_slice_sizes: {}'.format(gate_slice_sizes)) # TODO
+      f_logits, i_logits, o_logits, g_logits, z_t_logit = tf.split_v(
+        gate_logits, gate_slice_sizes, split_dim=1)      
+     
       # TODO check that z_t_logit is a scalar, or squeeze it so it becomes one
-      assert z_t_logit.get_shape() == [], 'z_t_logit should be scalar: {}'.format(z_t_logit)
-      
+#      assert z_t_logit.get_shape() == [], 'z_t_logit should be scalar: {}'.format(z_t_logit.get_shape())
       f = tf.sigmoid(f_logits)
       i = tf.sigmoid(i_logits)
       o = tf.sigmoid(o_logits)
@@ -102,60 +115,75 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
       #   raise Exception('Invalid z values. z_prev: {0:.4f}, z_below: {1:.4f}'.format(
       #     z_prev, z_below))
 
-    state_new = LSTMStateTuple(c_new, h_new, z_new)
+    state_new = HmLstmStateTuple(c_new, h_new, z_new)
     return h_new, state_new
 
 
-# from the original rnn_cell.py in tensorflow
-# TODO not sure if I can use it as effectively here...
-def _linear(args, output_size, bias, bias_start=0.0, scope=None):
-  """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
 
-  Args:
-    args: a 2D Tensor or a list of 2D, batch x n, Tensors.
-    output_size: int, second dimension of W[i].
-    bias: boolean, whether to add a bias term or not.
-    bias_start: starting value to initialize the bias; 0 by default.
-    scope: VariableScope for the created subgraph; defaults to "Linear".
+# The output for this is a list of h_vectors, one for each cell.
+class MultiHmRNNCell(tf.nn.rnn_cell.RNNCell):
+  def __init__(self, cells, output_embedding_size):
+    """Create a RNN cell composed sequentially of a number of HmRNNCells.
 
-  Returns:
-    A 2D Tensor with shape [batch x output_size] equal to
-    sum_i(args[i] * W[i]), where W[i]s are newly created matrices.
+    Args:
+      cells: list of HmRNNCells that will be composed in this order.
+    """
+    if not cells:
+      raise ValueError("Must specify at least one cell for MultiHmRNNCell.")
+    self._cells = cells
+    self._output_embedding_size = output_embedding_size
 
-  Raises:
-    ValueError: if some of the arguments has unspecified or wrong shape.
-  """
-  if args is None or (nest.is_sequence(args) and not args):
-    raise ValueError("`args` must be specified")
-  if not nest.is_sequence(args):
-    args = [args]
+  @property
+  def state_size(self):
+    return tuple(cell.state_size for cell in self._cells)
 
-  # Calculate the total size of arguments on dimension 1.
-  total_arg_size = 0
-  shapes = [a.get_shape().as_list() for a in args]
-  for shape in shapes:
-    if len(shape) != 2:
-      raise ValueError("Linear is expecting 2D arguments: %s" % str(shapes))
-    if not shape[1]:
-      raise ValueError("Linear expects shape[1] of arguments: %s" % str(shapes))
-    else:
-      total_arg_size += shape[1]
+  @property
+  def output_size(self):
+    return self._output_embedding_size
 
-  dtype = [a.dtype for a in args][0]
+  # inputs should be a batch of word vectors
+  # state should be a list of HM cell state tuples of the same length as self._cells
+  def __call__(self, inputs, state, scope=None):
+    """Run this multi-layer cell on inputs, starting from state."""
+    assert len(state) == len(self._cells)
+    with vs.variable_scope(scope or type(self).__name__):  # "MultiHmRNNCell"
+      if len(self._cells) > 1:
+        h_prev_top = state[1].h
+      else:
+        h_prev_top = np.zeros(state[0].h.get_shape())
+      # h_bottom, z_bottom, h_prev_top
+      current_input = inputs, tf.ones(inputs.get_shape()[0]), h_prev_top
+      new_h_list = []
+      new_states = []
+      # Go through each cell in the different layers, going bottom to top
+      for i, cell in enumerate(self._cells):
+        with vs.variable_scope("Cell%d" % i):
+          new_h, new_state = cell(current_input, state[i]) # state[i] = c_prev, h_prev, z_prev
+          assert new_h == new_state.h # TODO remove after you're done coding
+          # if this is the last element, the h_prev_top vector should be zeros
+          if i < len(self._cells) - 2:
+            h_prev_top = state[i+2].h
+          else:
+            h_prev_top = np.zeros(state[i+1].h.get_shape())
+          current_input = new_state.h, new_state.z, h_prev_top  # h_bottom, z_bottom, h_prev_top
+          new_h_list.append(new_h)
+          new_states.append(new_state)
+      # Output layer
+      concat_new_h = tf.concat(0, new_h_list)
+      output_logits = []
+      for i in range(new_h_list):
+        # w^l
+        gating_unit_weight = vs.get_variable("w{}".format(i), concat_new_h.get_shape(), dtype=tf.float32)
+        # g_t^l
+        gating_unit = tf.sigmoid(tf.reduce_sum(gating_unit_weight * concat_new_h))
+        # W_l^e
+        output_embedding_matrix = vs.get_variable("W{}".format(i),
+                                                  [self._output_embedding_size, new_h_list[i]], dtype=tf.float32)
+        output_logits = gating_unit * tf.matmul(output_embedding_matrix, new_h_list[i]) # TODO new_h_list[i] has rank 1, must have rank2?
+      output_h = tf.relu(tf.sum_n(output_logits))
+      
+    return output_h, tuple(new_states)
 
-  # Now the computation.
-  with vs.variable_scope(scope or "Linear"):
-    matrix = vs.get_variable(
-        "Matrix", [total_arg_size, output_size], dtype=dtype)
-    if len(args) == 1:
-      res = math_ops.matmul(args[0], matrix)
-    else:
-      res = math_ops.matmul(array_ops.concat(1, args), matrix)
-    if not bias:
-      return res
-    bias_term = vs.get_variable(
-        "Bias", [output_size],
-        dtype=dtype,
-        initializer=init_ops.constant_initializer(
-            bias_start, dtype=dtype))
-  return res + bias_term
+
+
+

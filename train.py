@@ -1,32 +1,8 @@
-# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
+""" NYU Natural Language Understanding 2016. Team Grumpy project.
 
-"""Example / benchmark for building a PTB LSTM model.
+Based on tensorflow's ptb_word_lm.py.
 
-Trains the model described in:
-(Zaremba, et. al.) Recurrent Neural Network Regularization
-http://arxiv.org/abs/1409.2329
-
-There are 3 supported model configurations:
-===========================================
-| config | epochs | train | valid  | test
-===========================================
-| small  | 13     | 37.99 | 121.39 | 115.91
-| medium | 39     | 48.45 |  86.16 |  82.07
-| large  | 55     | 37.87 |  82.62 |  78.29
-The exact results may vary depending on the random initialization.
+There are 3 supported model configurations: small, medium, large
 
 The hyperparameters used in the model:
 - init_scale - the initial scale of the weights
@@ -49,7 +25,7 @@ $ tar xvf simple-examples.tgz
 
 To run:
 
-$ python ptb_word_lm.py --data_path=simple-examples/data/
+$ python train.py --data_path=simple-examples/data/
 
 """
 from __future__ import absolute_import
@@ -60,9 +36,11 @@ import time
 
 import numpy as np
 import tensorflow as tf
-import rnn_cell
 import reader
 import time
+
+import hm_lstm
+
 
 flags = tf.flags
 logging = tf.logging
@@ -107,18 +85,19 @@ class PTBModel(object):
     size = config.hidden_size
     vocab_size = config.vocab_size
 
-    # Slightly better results can be obtained with forget gate biases
-    # initialized to 1 but the hyperparameters of the model would need to be
-    # different than reported in the paper.
     if FLAGS.use_gru:
-      lstm_cell = rnn_cell.GRUCell(size)
+      # TODO implement HM-GRU!
+      raise Exception('--use_gru is set, but HM-GRU doesn\'t exist!')
     else:
-      lstm_cell = rnn_cell.BasicLSTMCell(size, forget_bias=0.0, state_is_tuple=True)
-    if is_training and config.keep_prob < 1:
-      lstm_cell = tf.nn.rnn_cell.DropoutWrapper(
-          lstm_cell, output_keep_prob=config.keep_prob)
+      cell = hm_lstm.HmLstmCell(size)
+#      cell = tf.nn.rnn_cell.BasicLSTMCell(size, forget_bias=0.0, state_is_tuple=True)
+      
+    # TODO i'm not sure this dropout wrapper will work for HM-LSTM...check
+    # if is_training and config.keep_prob < 1:
+    #   rnn_cell = tf.nn.rnn_cell.DropoutWrapper(
+    #       rnn_cell, output_keep_prob=config.keep_prob)
 
-    cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell] * config.num_layers, state_is_tuple=True)
+#    cell = MultiHmRNNCell([rnn_cell] * config.num_layers)
 
     self._initial_state = cell.zero_state(batch_size, data_type())
 
@@ -127,24 +106,22 @@ class PTBModel(object):
           "embedding", [vocab_size, size], dtype=data_type())
       inputs = tf.nn.embedding_lookup(self._embedding, input_.input_data)
 
-    if is_training and config.keep_prob < 1:
-      inputs = tf.nn.dropout(inputs, config.keep_prob)
+      # TODO removing dropout on the inputs because we removed it on the weights...but it's actually probably ok.
+#    if is_training and config.keep_prob < 1:
+#      inputs = tf.nn.dropout(inputs, config.keep_prob)
 
-    # Simplified version of tensorflow.models.rnn.rnn.py's rnn().
-    # This builds an unrolled LSTM for tutorial purposes only.
-    # In general, use the rnn() or state_saving_rnn() from rnn.py.
-    #
-    # The alternative version of the code below is:
-    #
-    # inputs = [tf.squeeze(input_step, [1])
-    #           for input_step in tf.split(1, num_steps, inputs)]
-    # outputs, state = tf.nn.rnn(cell, inputs, initial_state=self._initial_state)
     outputs = []
     state = self._initial_state
     with tf.variable_scope("RNN"):
       for time_step in range(num_steps):
         if time_step > 0: tf.get_variable_scope().reuse_variables()
-        (cell_output, state) = cell(inputs[:, time_step, :], state)
+        # TODO make the special 'inputs' tuple that fakes all the other crap
+        data_slice = inputs[:, time_step, :] # TODO
+        z_bottom = tf.ones([inputs.get_shape()[0],1], dtype=data_type()) # TODO 
+        h_prev_top = tf.zeros(self._initial_state.h.get_shape(), dtype=data_type()) # TODO
+        input_tuple = (data_slice, z_bottom, h_prev_top) # TODO
+        (cell_output, state) = cell(input_tuple, state)
+#TODO        (cell_output, state) = cell(inputs[:, time_step, :], state)
         outputs.append(cell_output)
 
     output = tf.reshape(tf.concat(1, outputs), [-1, size])
@@ -168,6 +145,7 @@ class PTBModel(object):
     print([var.name for var in tvars])
     grads, _ = tf.clip_by_global_norm(tf.gradients(cost, tvars),
                                       config.max_grad_norm)
+    # TODO consider a fancier optimizer, like AdamOptimizer
     optimizer = tf.train.GradientDescentOptimizer(self._lr)
     self._train_op = optimizer.apply_gradients(
         zip(grads, tvars),
@@ -305,16 +283,24 @@ def run_epoch(session, model, eval_op=None, verbose=False):
   if eval_op is not None:
     fetches["eval_op"] = eval_op
 
+  # TODO: I think this sets up the initial set of stacked cells.
+  # we'll need to change this for HM-LSTM
   for step in range(model.input.epoch_size):
     feed_dict = {}
-    if FLAGS.use_gru:
-      for i, h in enumerate(model.initial_state):
-        feed_dict[h] = state[i]
-    else:
-      for i, (c, h) in enumerate(model.initial_state):
-        feed_dict[c] = state[i].c
-        feed_dict[h] = state[i].h
+    # TODO temp until we do a layered hmlstm
+    # if FLAGS.use_gru:
+    #   for i, h in enumerate(model.initial_state):
+    #     feed_dict[h] = state[i]
+    # else:
+    #   for i, (c, h) in enumerate(model.initial_state):
+    #     feed_dict[c] = state[i].c
+    #     feed_dict[h] = state[i].h
+    # TODO temp!
+    feed_dict[model.initial_state.c] = state.c
+    feed_dict[model.initial_state.h] = state.h
+    feed_dict[model.initial_state.z] = state.z
 
+    
     vals = session.run(fetches, feed_dict)
     cost = vals["cost"]
     state = vals["final_state"]
@@ -350,8 +336,6 @@ def main(_):
   if not FLAGS.data_path:
     raise ValueError("Must set --data_path to PTB data directory")
 
-  if FLAGS.omit_gate:
-    print('omitting gate: '+ FLAGS.omit_gate)
   if FLAGS.use_gru:
     print('using GRU')
     
