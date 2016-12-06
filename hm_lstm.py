@@ -72,20 +72,10 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
 
       s_curr = tf.matmul(h_prev, U_curr)
       s_top = z_prev * tf.matmul(h_top_prev, U_top)
-#      print('h_bottom dimensions: {}'.format(h_bottom.get_shape())) # TODO      
-#      print('W_bottom dimensions: {}'.format(W_bottom.get_shape())) # TODO
-#      print('z_bottom dimensions: {}'.format(z_bottom.get_shape())) # TODO
-# TODO this is printing out as having ?, ? shape....
-#      print('z_prev dimensions: {}'.format(z_prev.get_shape())) # TODO
       s_bottom = z_bottom * tf.matmul(h_bottom, W_bottom)
       gate_logits = s_curr + s_top + s_bottom + bias
-
-#TODO      print('gate_slice_sizes: {}'.format(gate_slice_sizes)) # TODO
       f_logits, i_logits, o_logits, g_logits, z_t_logit = tf.split_v(
-        gate_logits, gate_slice_sizes, split_dim=1)      
-     
-      # TODO check that z_t_logit is a scalar, or squeeze it so it becomes one
-#      assert z_t_logit.get_shape() == [], 'z_t_logit should be scalar: {}'.format(z_t_logit.get_shape())
+        gate_logits, gate_slice_sizes, split_dim=1)           
       f = tf.sigmoid(f_logits)
       i = tf.sigmoid(i_logits)
       o = tf.sigmoid(o_logits)
@@ -152,36 +142,39 @@ class MultiHmRNNCell(tf.nn.rnn_cell.RNNCell):
       else:
         h_prev_top = np.zeros(state[0].h.get_shape())
       # h_bottom, z_bottom, h_prev_top
-      current_input = inputs, tf.ones(inputs.get_shape()[0]), h_prev_top
+      current_input = inputs, tf.ones([inputs.get_shape()[0], 1]), h_prev_top
       new_h_list = []
       new_states = []
       # Go through each cell in the different layers, going bottom to top
       for i, cell in enumerate(self._cells):
         with vs.variable_scope("Cell%d" % i):
           new_h, new_state = cell(current_input, state[i]) # state[i] = c_prev, h_prev, z_prev
-          assert new_h == new_state.h # TODO remove after you're done coding
-          # if this is the last element, the h_prev_top vector should be zeros
+          assert new_h == new_state.h
+          # Set up the inputs for the next cell.
           if i < len(self._cells) - 2:
+            # Next cell is not the top one.
             h_prev_top = state[i+2].h
           else:
-            h_prev_top = np.zeros(state[i+1].h.get_shape())
+            # The next cell is the top one, so give it zeros for its h_prev_top input.
+            h_prev_top = tf.zeros(state[i].h.get_shape())
           current_input = new_state.h, new_state.z, h_prev_top  # h_bottom, z_bottom, h_prev_top
           new_h_list.append(new_h)
           new_states.append(new_state)
       # Output layer
-      concat_new_h = tf.concat(0, new_h_list)
-      output_logits = []
-      for i in range(new_h_list):
-        # w^l
-        gating_unit_weight = vs.get_variable("w{}".format(i), concat_new_h.get_shape(), dtype=tf.float32)
-        # g_t^l
-        gating_unit = tf.sigmoid(tf.reduce_sum(gating_unit_weight * concat_new_h))
-        # W_l^e
-        output_embedding_matrix = vs.get_variable("W{}".format(i),
-                                                  [self._output_embedding_size, new_h_list[i]], dtype=tf.float32)
-        output_logits = gating_unit * tf.matmul(output_embedding_matrix, new_h_list[i]) # TODO new_h_list[i] has rank 1, must have rank2?
-      output_h = tf.relu(tf.sum_n(output_logits))
-      
+      with vs.variable_scope("Output"):
+        concat_new_h = tf.concat(0, new_h_list)
+        output_logits = []
+        for i in range(len(new_h_list)):
+          # w^l
+          gating_unit_weight = vs.get_variable("w{}".format(i), concat_new_h.get_shape(), dtype=tf.float32)
+          # g_t^l
+          gating_unit = tf.sigmoid(tf.reduce_sum(gating_unit_weight * concat_new_h))
+          # W_l^e
+          output_embedding_matrix = vs.get_variable("W{}".format(i), 
+                                                    [self._output_embedding_size, new_h_list[i].get_shape()[1]], dtype=tf.float32)
+          output_logit = gating_unit * tf.matmul(new_h_list[i], output_embedding_matrix)
+          output_logits.append(output_logit)
+        output_h = tf.nn.relu(tf.add_n(output_logits))
     return output_h, tuple(new_states)
 
 

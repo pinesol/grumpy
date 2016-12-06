@@ -89,15 +89,14 @@ class PTBModel(object):
       # TODO implement HM-GRU!
       raise Exception('--use_gru is set, but HM-GRU doesn\'t exist!')
     else:
-      cell = hm_lstm.HmLstmCell(size)
-#      cell = tf.nn.rnn_cell.BasicLSTMCell(size, forget_bias=0.0, state_is_tuple=True)
+      rnn_cell = hm_lstm.HmLstmCell(size)
       
     # TODO i'm not sure this dropout wrapper will work for HM-LSTM...check
     # if is_training and config.keep_prob < 1:
     #   rnn_cell = tf.nn.rnn_cell.DropoutWrapper(
     #       rnn_cell, output_keep_prob=config.keep_prob)
 
-#    cell = MultiHmRNNCell([rnn_cell] * config.num_layers)
+    cell = hm_lstm.MultiHmRNNCell([rnn_cell] * config.num_layers, size)
 
     self._initial_state = cell.zero_state(batch_size, data_type())
 
@@ -115,13 +114,7 @@ class PTBModel(object):
     with tf.variable_scope("RNN"):
       for time_step in range(num_steps):
         if time_step > 0: tf.get_variable_scope().reuse_variables()
-        # TODO make the special 'inputs' tuple that fakes all the other crap
-        data_slice = inputs[:, time_step, :] # TODO
-        z_bottom = tf.ones([inputs.get_shape()[0],1], dtype=data_type()) # TODO 
-        h_prev_top = tf.zeros(self._initial_state.h.get_shape(), dtype=data_type()) # TODO
-        input_tuple = (data_slice, z_bottom, h_prev_top) # TODO
-        (cell_output, state) = cell(input_tuple, state)
-#TODO        (cell_output, state) = cell(inputs[:, time_step, :], state)
+        (cell_output, state) = cell(inputs[:, time_step, :], state)
         outputs.append(cell_output)
 
     output = tf.reshape(tf.concat(1, outputs), [-1, size])
@@ -145,7 +138,6 @@ class PTBModel(object):
     print([var.name for var in tvars])
     grads, _ = tf.clip_by_global_norm(tf.gradients(cost, tvars),
                                       config.max_grad_norm)
-    # TODO consider a fancier optimizer, like AdamOptimizer
     optimizer = tf.train.GradientDescentOptimizer(self._lr)
     self._train_op = optimizer.apply_gradients(
         zip(grads, tvars),
@@ -193,7 +185,7 @@ class SmallConfig(object):
 #TODO(GRU):  learning_rate = 1.0
   learning_rate = 0.7 # TODO
   max_grad_norm = 5
-  num_layers = 2
+  num_layers = 3
   num_steps = 20
   hidden_size = 200
   max_epoch = 4
@@ -209,7 +201,7 @@ class SmallGRUConfig(object):
   init_scale = 0.1
   learning_rate = 0.7 # Decreased this from 1.0
   max_grad_norm = 5
-  num_layers = 2
+  num_layers = 3
   num_steps = 20
   hidden_size = 200
   max_epoch = 4
@@ -226,7 +218,7 @@ class MediumConfig(object):
   init_scale = 0.05
   learning_rate = 1.0
   max_grad_norm = 5
-  num_layers = 2
+  num_layers = 3
   num_steps = 35
   hidden_size = 650
   max_epoch = 6
@@ -242,7 +234,7 @@ class LargeConfig(object):
   init_scale = 0.04
   learning_rate = 1.0
   max_grad_norm = 10
-  num_layers = 2
+  num_layers = 3
   num_steps = 35
   hidden_size = 1500
   max_epoch = 14
@@ -283,23 +275,18 @@ def run_epoch(session, model, eval_op=None, verbose=False):
   if eval_op is not None:
     fetches["eval_op"] = eval_op
 
-  # TODO: I think this sets up the initial set of stacked cells.
-  # we'll need to change this for HM-LSTM
+  # This sets up the initial set of stacked cells.
   for step in range(model.input.epoch_size):
     feed_dict = {}
-    # TODO temp until we do a layered hmlstm
-    # if FLAGS.use_gru:
-    #   for i, h in enumerate(model.initial_state):
-    #     feed_dict[h] = state[i]
-    # else:
-    #   for i, (c, h) in enumerate(model.initial_state):
-    #     feed_dict[c] = state[i].c
-    #     feed_dict[h] = state[i].h
-    # TODO temp!
-    feed_dict[model.initial_state.c] = state.c
-    feed_dict[model.initial_state.h] = state.h
-    feed_dict[model.initial_state.z] = state.z
-
+    if FLAGS.use_gru:
+      for i, h, z in enumerate(model.initial_state):
+        #TODO feed_dict[h] = state[i]
+        raise Exception('GRU not implemented yet!') # TODO
+    else:
+      for i, (c, h, z) in enumerate(model.initial_state):
+        feed_dict[c] = state[i].c
+        feed_dict[h] = state[i].h
+        feed_dict[z] = state[i].z
     
     vals = session.run(fetches, feed_dict)
     cost = vals["cost"]
