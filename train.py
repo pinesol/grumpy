@@ -39,7 +39,7 @@ import tensorflow as tf
 import reader
 import time
 
-import hm_lstm
+import hm_rnn
 
 
 flags = tf.flags
@@ -89,14 +89,14 @@ class PTBModel(object):
       # TODO implement HM-GRU!
       raise Exception('--use_gru is set, but HM-GRU doesn\'t exist!')
     else:
-      rnn_cell = hm_lstm.HmLstmCell(size)
+      rnn_cell = hm_rnn.HmLstmCell(size)
       
     # TODO i'm not sure this dropout wrapper will work for HM-LSTM...check
     # if is_training and config.keep_prob < 1:
     #   rnn_cell = tf.nn.rnn_cell.DropoutWrapper(
     #       rnn_cell, output_keep_prob=config.keep_prob)
 
-    cell = hm_lstm.MultiHmRNNCell([rnn_cell] * config.num_layers, size)
+    cell = hm_rnn.MultiHmRNNCell([rnn_cell] * config.num_layers, size)
 
     self._initial_state = cell.zero_state(batch_size, data_type())
 
