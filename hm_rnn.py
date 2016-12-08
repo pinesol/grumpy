@@ -1,5 +1,5 @@
 
-# Note: Requires Tensorflow 0.12
+# Note: Requires Tensorflow 0.11 or lower. Breaks in Tensorflow 0.12.
 
 import collections
 import tensorflow as tf
@@ -51,8 +51,7 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
     # vars from the previous time step on the same lyayer
     c_prev, h_prev, z_prev = state
 
-    gate_slice_sizes = [self._num_units, self._num_units, self._num_units, self._num_units, 1]
-    num_rows = sum(gate_slice_sizes)
+    num_rows = 4 * self._num_units + 1
 
     # scope: optional name for the variable scope, defaults to "HmLstmCell"
     with vs.variable_scope(scope or type(self).__name__):  # "HmLstmCell"
@@ -74,8 +73,13 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
       s_top = z_prev * tf.matmul(h_top_prev, U_top)
       s_bottom = z_bottom * tf.matmul(h_bottom, W_bottom)
       gate_logits = s_curr + s_top + s_bottom + bias
-      f_logits, i_logits, o_logits, g_logits, z_t_logit = tf.split_v(
-        gate_logits, gate_slice_sizes, split_dim=1)           
+
+      f_logits = tf.slice(gate_logits, [0, 0], [-1, self._num_units])
+      i_logits = tf.slice(gate_logits, [0, self._num_units], [-1, self._num_units])
+      o_logits = tf.slice(gate_logits, [0, 2*self._num_units], [-1, self._num_units])
+      g_logits = tf.slice(gate_logits, [0, 3*self._num_units], [-1, self._num_units])
+      z_t_logit = tf.slice(gate_logits, [0, 4*self._num_units], [-1, 1])
+      
       f = tf.sigmoid(f_logits)
       i = tf.sigmoid(i_logits)
       o = tf.sigmoid(o_logits)
