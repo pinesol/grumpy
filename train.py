@@ -337,7 +337,7 @@ def main(_):
   with tf.Graph().as_default():
     initializer = tf.random_uniform_initializer(-config.init_scale,
                                                 config.init_scale)
-
+    print('Building training model...')
     with tf.name_scope("Train"):
       train_input = PTBInput(config=config, data=train_data, name="TrainInput")
       with tf.variable_scope("Model", reuse=None, initializer=initializer):
@@ -345,12 +345,14 @@ def main(_):
       tf.scalar_summary("Training Loss", m.cost)
       tf.scalar_summary("Learning Rate", m.lr)
 
+    print('Building validation model...')
     with tf.name_scope("Valid"):
       valid_input = PTBInput(config=config, data=valid_data, name="ValidInput")
       with tf.variable_scope("Model", reuse=True, initializer=initializer):
         mvalid = PTBModel(is_training=False, config=config, input_=valid_input)
       tf.scalar_summary("Validation Loss", mvalid.cost)
 
+    print('Building testing model...')
     with tf.name_scope("Test"):
       test_input = PTBInput(config=config, data=test_data, name="TestInput")
       with tf.variable_scope("Model", reuse=True, initializer=initializer):

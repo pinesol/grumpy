@@ -82,7 +82,9 @@ def binaryStochastic_ST(x, slope_tensor=None, pass_through=True, stochastic=True
     """
     if slope_tensor is None:
         slope_tensor = tf.constant(1.0)
-        
+
+    #TODO hard sigmoid:
+    # z_tilda = tf.maximum(0, tf.minimum(1, (slope * z_t_logit) / 2))
     if pass_through:
         p = passThroughSigmoid(x)  # TODO hard sigmoid? pass though it typically used when we don't do slope annealing
     else:
@@ -275,37 +277,29 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
       o = tf.sigmoid(o_logits)
       g = tf.tanh(g_logits)
 
-      # TODO commenting out all this until we figure out how to do the fancy gradient stuff.
-      # Just doing the 'update' move all the time, which is basically normal LSTM.
-      c_new = f * c_prev + i * g
-      h_new = o * tf.tanh(c_new)
-#TODO      z_new = tf.sigmoid(z_t_logit)
-      # TODO slope annealing
+      # This is the stochastic neuron
       z_new = binary_wrapper(z_t_logit,
                              estimator=StochasticGradientEstimator.ST,
                              pass_through=False, # TODO make this true if you do slope annealing
                              stochastic_tensor=tf.constant(True), # TODO make this false if you do slope annealing
                              slope_tensor=None) # TODO set this if you do slope annealing
+
+      z_zero_mask = tf.equal(z_prev, tf.zeros_like(z_prev))
+      copy_mask = tf.to_float(tf.logical_and(z_zero_mask, tf.equal(z_bottom, tf.zeros_like(z_bottom))))
+      update_mask = tf.to_float(tf.logical_and(z_zero_mask, tf.cast(z_bottom, tf.bool)))
+      flush_mask = z_prev
       
-      # slope = 1 # TODO slope annealing trick
-      # z_tilda = tf.maximum(0, tf.minimum(1, (slope * z_t_logit) / 2))
-      # TODO you have to do something special with the gradient here.
-      # z_new = 1 if z_tilda > 0.5 else 0
+      tf.assert_equal(tf.reduce_sum(copy_mask + update_mask + flush_mask),
+                      tf.reduce_sum(tf.ones_like(flush_mask))) # TODO
+      
+      c_flush = i * g
+      c_update = f * c_prev + c_flush      
+      c_new = copy_mask * c_prev + update_mask * c_update + flush_mask * c_flush
 
-      # TODO use tf.cond to actually skip computation 
-      # if z_prev == 0 and z_below == 1:  # UPDATE
-      #   c_new = f * c_prev + i * g
-      #   h_new = o * tf.tanh(c_new)
-      # elif z_prev == 0 and z_below == 0:  # COPY
-      #   c_new = c_prev
-      #   h_new = h_prev
-      # elif z_prev == 1:  # FLUSH
-      #   c_new = i * g
-      #   h_new = o * tf.tanh(c_new)
-      # else:
-      #   raise Exception('Invalid z values. z_prev: {0:.4f}, z_below: {1:.4f}'.format(
-      #     z_prev, z_below))
-
+      h_flush = o * tf.tanh(c_flush)
+      h_update = o * tf.tanh(c_update)
+      h_new = copy_mask * h_prev + update_mask * h_update + flush_mask * h_flush
+      
     state_new = HmLstmStateTuple(c_new, h_new, z_new)
     return h_new, state_new
 
