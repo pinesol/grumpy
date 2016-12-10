@@ -86,8 +86,7 @@ class PTBModel(object):
     vocab_size = config.vocab_size
 
     if FLAGS.use_gru:
-      # TODO implement HM-GRU!
-      raise Exception('--use_gru is set, but HM-GRU doesn\'t exist!')
+      rnn_cell = hm_rnn.HmGruCell(size)
     else:
       rnn_cell = hm_rnn.HmLstmCell(size)
       
@@ -280,8 +279,8 @@ def run_epoch(session, model, eval_op=None, verbose=False):
     feed_dict = {}
     if FLAGS.use_gru:
       for i, h, z in enumerate(model.initial_state):
-        #TODO feed_dict[h] = state[i]
-        raise Exception('GRU not implemented yet!') # TODO
+        feed_dict[h] = state[i].h
+        feed_dict[z] = state[i].z
     else:
       for i, (c, h, z) in enumerate(model.initial_state):
         feed_dict[c] = state[i].c

@@ -199,6 +199,101 @@ def binary_wrapper(pre_activations_tensor,
 # TODO end s2st code
 
 
+_HmGruStateTuple = collections.namedtuple("GRUStateTuple", ("h", "z"))
+
+class HmGruStateTuple(_HmGruStateTuple):
+  """Tuple used by HmGru Cells for `state_size`, `zero_state`, and output state.
+
+  Stores two elements: `(h, z)`, in that order.
+  """
+  __slots__ = ()
+
+  @property
+  def dtype(self):
+    (h, z) = self
+    return h.dtype
+
+  
+class HmGruCell(tf.nn.rnn_cell.RNNCell):
+  def __init__(self, num_units):
+    # self._num_units determines the size of h.
+    self._num_units = num_units
+
+  @property
+  def state_size(self):
+    return HmGruStateTuple(self._num_units, 1)
+
+  @property
+  def output_size(self):
+    return self._num_units
+
+  # TODO make the type changeable instead of defaulting to float32?
+  
+  # All RNNs return (output, new_state). For this type of GRU, its 'output' is still its h vector,
+  # and it's cell state is a h,z tuple.
+  # 'inputs' are a tuple of h_bottom, z_bottom, and h_top_prev.
+  # 'state' is a h,z HmGruTuple
+  def __call__(self, inputs, state, scope=None):
+    # vars from different layers.
+    h_bottom, z_bottom, h_top_prev = inputs
+    # vars from the previous time step on the same layer
+    h_prev, z_prev = state
+
+    # I'm calling the the 'z gate' in GRU the 'o gate', since z means something different in HM-LSTM.
+    # r, o, g, z_stochastic_tilda
+    num_rows = 3 * self._num_units + 1
+
+    # scope: optional name for the variable scope, defaults to "HmGruCell"
+    with vs.variable_scope(scope or type(self).__name__):
+      # Matrix U_l^l
+      U_curr = vs.get_variable("U_curr", [h_prev.get_shape()[1], num_rows], dtype=tf.float32)
+      # Matrix U_{l+1}^l
+      U_top = vs.get_variable("U_top", [h_bottom.get_shape()[1], num_rows], dtype=tf.float32)
+      # Matrix W_{l-1}^l
+      W_bottom = vs.get_variable("W_bottom", [h_bottom.get_shape()[1], num_rows],
+                                 dtype=tf.float32)
+      # b_l
+      bias = vs.get_variable("bias", [num_rows], dtype=tf.float32)
+
+      s_curr = tf.matmul(h_prev, U_curr)
+      s_top = z_prev * tf.matmul(h_top_prev, U_top)
+      s_bottom = z_bottom * tf.matmul(h_bottom, W_bottom)
+      gate_logits = s_curr + s_top + s_bottom + bias
+
+      r_logits = tf.slice(gate_logits, [0, 0], [-1, self._num_units])
+      o_logits = tf.slice(gate_logits, [0, self._num_units], [-1, self._num_units])
+      g_logits = tf.slice(gate_logits, [0, 2*self._num_units], [-1, self._num_units])
+      z_t_logit = tf.slice(gate_logits, [0, 3*self._num_units], [-1, 1])
+      
+      r = tf.sigmoid(r_logits)
+      o = tf.sigmoid(o_logits)
+      g = tf.tanh(g_logits * r) # TODO TODO TODO untested and probably wrong!
+
+      # This is the stochastic neuron
+      z_new = binary_wrapper(z_t_logit,
+                             estimator=StochasticGradientEstimator.ST,
+                             pass_through=False, # TODO make this true if you do slope annealing
+                             stochastic_tensor=tf.constant(True), # TODO make this false if you do slope annealing
+                             slope_tensor=None) # TODO set this if you do slope annealing
+
+      z_zero_mask = tf.equal(z_prev, tf.zeros_like(z_prev))
+      copy_mask = tf.to_float(tf.logical_and(z_zero_mask, tf.equal(z_bottom, tf.zeros_like(z_bottom))))
+      update_mask = tf.to_float(tf.logical_and(z_zero_mask, tf.cast(z_bottom, tf.bool)))
+      flush_mask = z_prev
+
+# TODO put this behind a test flag
+#      tf.assert_equal(tf.reduce_sum(copy_mask + update_mask + flush_mask),
+#                      tf.reduce_sum(tf.ones_like(flush_mask))) # TODO
+
+      # TODO untested and not thought through!
+      h_flush = o * g
+      h_update = (tf.ones_like(o) - o) * h_prev + h_flush
+      h_new = copy_mask * h_prev + update_mask * h_update + flush_mask * h_flush
+      
+    return h_new, HmGruStateTuple(h_new, z_new)
+
+
+
 _HmLstmStateTuple = collections.namedtuple("LSTMStateTuple", ("c", "h", "z"))
 
 
@@ -288,9 +383,10 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
       copy_mask = tf.to_float(tf.logical_and(z_zero_mask, tf.equal(z_bottom, tf.zeros_like(z_bottom))))
       update_mask = tf.to_float(tf.logical_and(z_zero_mask, tf.cast(z_bottom, tf.bool)))
       flush_mask = z_prev
-      
-      tf.assert_equal(tf.reduce_sum(copy_mask + update_mask + flush_mask),
-                      tf.reduce_sum(tf.ones_like(flush_mask))) # TODO
+
+# TODO put this behind a test flag
+#      tf.assert_equal(tf.reduce_sum(copy_mask + update_mask + flush_mask),
+#                      tf.reduce_sum(tf.ones_like(flush_mask))) # TODO
       
       c_flush = i * g
       c_update = f * c_prev + c_flush      
