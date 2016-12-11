@@ -1,17 +1,11 @@
 
 # Note: Requires Tensorflow 0.11 or lower. Breaks in Tensorflow 0.12.
 
-from enum import Enum
 import collections
 import tensorflow as tf
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.framework import ops
 
-
-# TODO start s2st code        
-class StochasticGradientEstimator(Enum):
-    ST = 0
-    REINFORCE = 1
 
 def binaryRound(x):
     """
@@ -95,72 +89,8 @@ def binaryStochastic_ST(x, slope_tensor=None, pass_through=True, stochastic=True
     else:
         return binaryRound(p)
 
-def binaryStochastic_REINFORCE(x, stochastic = True, loss_op_name="loss_by_example"):
-    """
-    Sigmoid followed by a random sample from a bernoulli distribution according
-    to the result (binary stochastic neuron). Uses the REINFORCE estimator.
-    See https://arxiv.org/abs/1308.3432.
-    
-    NOTE: Requires a loss operation with name matching the argument for loss_op_name 
-    in the graph. This loss operation should be broken out by example (i.e., not a
-    single number for the entire batch).
-    """
-    g = tf.get_default_graph()
-
-    with ops.name_scope("BinaryStochasticREINFORCE"):    
-        with g.gradient_override_map({"Sigmoid": "BinaryStochastic_REINFORCE", 
-                                      "Ceil": "Identity"}):
-            p = tf.sigmoid(x)
-            
-            reinforce_collection = g.get_collection("REINFORCE")
-            if not reinforce_collection:
-                g.add_to_collection("REINFORCE", {})
-                reinforce_collection = g.get_collection("REINFORCE")
-            reinforce_collection[0][p.op.name] = loss_op_name
-            
-            return tf.ceil(p - tf.random_uniform(tf.shape(x)))
-
-            
-@ops.RegisterGradient("BinaryStochastic_REINFORCE")
-def _binaryStochastic_REINFORCE(op, _):
-    """Unbiased estimator for binary stochastic function based on REINFORCE."""
-    loss_op_name = op.graph.get_collection("REINFORCE")[0][op.name]
-    loss_tensor = op.graph.get_operation_by_name(loss_op_name).outputs[0]
-    
-    sub_tensor = op.outputs[0].consumers()[0].outputs[0] #subtraction tensor
-    ceil_tensor = sub_tensor.consumers()[0].outputs[0] #ceiling tensor
-    
-    outcome_diff = (ceil_tensor - op.outputs[0])
-    
-    # Provides an early out if we want to avoid variance adjustment for
-    # whatever reason (e.g., to show that variance adjustment helps)
-    if op.graph.get_collection("REINFORCE")[0].get("no_variance_adj"):
-        return outcome_diff * tf.expand_dims(loss_tensor, 1)
-    
-    outcome_diff_sq = tf.square(outcome_diff)
-    outcome_diff_sq_r = tf.reduce_mean(outcome_diff_sq, reduction_indices=0)
-    outcome_diff_sq_loss_r = tf.reduce_mean(outcome_diff_sq * tf.expand_dims(loss_tensor, 1),
-                                            reduction_indices=0)
-    
-    L_bar_num = tf.Variable(tf.zeros(outcome_diff_sq_r.get_shape()), trainable=False)
-    L_bar_den = tf.Variable(tf.ones(outcome_diff_sq_r.get_shape()), trainable=False)
-    
-    #Note: we already get a decent estimate of the average from the minibatch
-    decay = 0.95 
-    train_L_bar_num = tf.assign(L_bar_num, L_bar_num*decay +\
-                                            outcome_diff_sq_loss_r*(1-decay))
-    train_L_bar_den = tf.assign(L_bar_den, L_bar_den*decay +\
-                                            outcome_diff_sq_r*(1-decay))
-
-
-    with tf.control_dependencies([train_L_bar_num, train_L_bar_den]):   
-        L_bar = train_L_bar_num/(train_L_bar_den+1e-4)
-        L = tf.tile(tf.expand_dims(loss_tensor,1),
-                    tf.constant([1,L_bar.get_shape().as_list()[0]]))
-        return outcome_diff * (L - L_bar)
 
 def binary_wrapper(pre_activations_tensor,
-                   estimator=StochasticGradientEstimator.ST,
                    stochastic_tensor=tf.constant(True), 
                    pass_through=True, 
                    slope_tensor=tf.constant(1.0)):
@@ -168,7 +98,6 @@ def binary_wrapper(pre_activations_tensor,
     Turns a layer of pre-activations (logits) into a layer of binary stochastic neurons
     
     Keyword arguments:
-    *estimator: either ST or REINFORCE
     *stochastic_tensor: a boolean tensor indicating whether to sample from a bernoulli 
         distribution (True, default) or use a step_function (e.g., for inference)
     *pass_through: for ST only - boolean as to whether to substitute identity derivative on the 
@@ -176,26 +105,16 @@ def binary_wrapper(pre_activations_tensor,
     *slope_tensor: for ST only - tensor specifying the slope for purposes of slope annealing
         trick
     """
-    if estimator == StochasticGradientEstimator.ST:
-        if pass_through:
-            return tf.cond(stochastic_tensor, 
-                           lambda: binaryStochastic_ST(pre_activations_tensor), 
-                           lambda: binaryStochastic_ST(pre_activations_tensor, stochastic=False))  
-        else:
-          return tf.cond(stochastic_tensor, 
-                         lambda: binaryStochastic_ST(pre_activations_tensor, slope_tensor = slope_tensor, 
-                                                     pass_through=False), 
-                         lambda: binaryStochastic_ST(pre_activations_tensor, slope_tensor = slope_tensor, 
-                                                     pass_through=False, stochastic=False))
-    elif estimator == StochasticGradientEstimator.REINFORCE:
-        # binaryStochastic_REINFORCE was designed to only be stochastic, so using the ST version
-        # for the step fn for purposes of using step fn at evaluation / not for training
-        return tf.cond(stochastic_tensor,
-                       lambda: binaryStochastic_REINFORCE(pre_activations_tensor),
-                       lambda: binaryStochastic_ST(pre_activations_tensor, stochastic=False))
-    
+    if pass_through:
+        return tf.cond(stochastic_tensor, 
+                       lambda: binaryStochastic_ST(pre_activations_tensor), 
+                       lambda: binaryStochastic_ST(pre_activations_tensor, stochastic=False))  
     else:
-      raise ValueError("Unrecognized estimator.")
+        return tf.cond(stochastic_tensor, 
+                       lambda: binaryStochastic_ST(pre_activations_tensor, slope_tensor = slope_tensor, 
+                                                   pass_through=False), 
+                       lambda: binaryStochastic_ST(pre_activations_tensor, slope_tensor = slope_tensor, 
+                                                   pass_through=False, stochastic=False))
 # TODO end s2st code
 
 
@@ -271,7 +190,6 @@ class HmGruCell(tf.nn.rnn_cell.RNNCell):
 
       # This is the stochastic neuron
       z_new = binary_wrapper(z_t_logit,
-                             estimator=StochasticGradientEstimator.ST,
                              pass_through=False, # TODO make this true if you do slope annealing
                              stochastic_tensor=tf.constant(True), # TODO make this false if you do slope annealing
                              slope_tensor=None) # TODO set this if you do slope annealing
@@ -374,7 +292,6 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
 
       # This is the stochastic neuron
       z_new = binary_wrapper(z_t_logit,
-                             estimator=StochasticGradientEstimator.ST,
                              pass_through=False, # TODO make this true if you do slope annealing
                              stochastic_tensor=tf.constant(True), # TODO make this false if you do slope annealing
                              slope_tensor=None) # TODO set this if you do slope annealing
