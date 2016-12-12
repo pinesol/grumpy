@@ -186,7 +186,7 @@ class SmallConfig(object):
   max_grad_norm = 5
   num_layers = 3
   num_steps = 20
-  hidden_size = 200
+  hidden_size = 256
   max_epoch = 4
 #  max_max_epoch = 13
   max_max_epoch = 6 # TODO
@@ -202,7 +202,7 @@ class SmallGRUConfig(object):
   max_grad_norm = 5
   num_layers = 3
   num_steps = 20
-  hidden_size = 200
+  hidden_size = 256
   max_epoch = 4
 #  max_max_epoch = 13
   max_max_epoch = 6 # TODO
@@ -219,7 +219,7 @@ class MediumConfig(object):
   max_grad_norm = 5
   num_layers = 3
   num_steps = 35
-  hidden_size = 650
+  hidden_size = 512
   max_epoch = 6
   max_max_epoch = 39
   keep_prob = 0.5
@@ -235,7 +235,7 @@ class LargeConfig(object):
   max_grad_norm = 10
   num_layers = 3
   num_steps = 35
-  hidden_size = 1500
+  hidden_size = 1024
   max_epoch = 14
   max_max_epoch = 55
   keep_prob = 0.35
