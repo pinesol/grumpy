@@ -55,6 +55,9 @@ flags.DEFINE_string("save_path", None,
 flags.DEFINE_bool("use_fp16", False,
                   "Train using 16-bit floats instead of 32bit floats")
 flags.DEFINE_bool("use_gru", False, "If True, GRU is used. Otherwise, LSTM is used")
+flags.DEFINE_bool("use_hm", True, "If set, the hierarchical multiscale version is used."
+                  " Otherwise the regular RNN version is used.")
+flags.DEFINE_bool("use_dropout", False, "If set, it uses dropout")
 
 FLAGS = flags.FLAGS
 
@@ -85,18 +88,23 @@ class PTBModel(object):
     size = config.hidden_size
     vocab_size = config.vocab_size
 
-    if FLAGS.use_gru:
-      rnn_cell = hm_rnn.HmGruCell(size)
+    if FLAGS.use_hm:
+      if FLAGS.use_gru:
+        rnn_cell = hm_rnn.HmGruCell(size)
+      else:
+        rnn_cell = hm_rnn.HmLstmCell(size)
+      if is_training and config.keep_prob < 1:
+        rnn_cell = tf.nn.rnn_cell.DropoutWrapper(rnn_cell, output_keep_prob=config.keep_prob)
+      cell = hm_rnn.MultiHmRNNCell([rnn_cell] * config.num_layers, size)
     else:
-      rnn_cell = hm_rnn.HmLstmCell(size)
-      
-    # TODO i'm not sure this dropout wrapper will work for HM-LSTM...check
-    # if is_training and config.keep_prob < 1:
-    #   rnn_cell = tf.nn.rnn_cell.DropoutWrapper(
-    #       rnn_cell, output_keep_prob=config.keep_prob)
-
-    cell = hm_rnn.MultiHmRNNCell([rnn_cell] * config.num_layers, size)
-
+      if FLAGS.use_gru:
+        rnn_cell = tf.nn.rnn_cell.GRUCell(size)
+      else:
+        rnn_cell = tf.nn.rnn_cell.BasicLSTMCell(size, forget_bias=0.0, state_is_tuple=True)
+      if is_training and config.keep_prob < 1:
+        rnn_cell = tf.nn.rnn_cell.DropoutWrapper(rnn_cell, output_keep_prob=config.keep_prob)
+      cell = tf.nn.rnn_cell.MultiRNNCell([rnn_cell] * config.num_layers, state_is_tuple=True)
+    
     self._initial_state = cell.zero_state(batch_size, data_type())
 
     with tf.device("/cpu:0"):
@@ -104,9 +112,8 @@ class PTBModel(object):
           "embedding", [vocab_size, size], dtype=data_type())
       inputs = tf.nn.embedding_lookup(self._embedding, input_.input_data)
 
-      # TODO removing dropout on the inputs because we removed it on the weights...but it's actually probably ok.
-#    if is_training and config.keep_prob < 1:
-#      inputs = tf.nn.dropout(inputs, config.keep_prob)
+    if is_training and config.keep_prob < 1:
+      inputs = tf.nn.dropout(inputs, config.keep_prob)
 
     outputs = []
     state = self._initial_state
@@ -277,15 +284,24 @@ def run_epoch(session, model, eval_op=None, verbose=False):
   # This sets up the initial set of stacked cells.
   for step in range(model.input.epoch_size):
     feed_dict = {}
-    if FLAGS.use_gru:
-      for i, h, z in enumerate(model.initial_state):
-        feed_dict[h] = state[i].h
-        feed_dict[z] = state[i].z
+    if FLAGS.use_hm:
+      if FLAGS.use_gru:
+        for i, h, z in enumerate(model.initial_state):
+          feed_dict[h] = state[i].h
+          feed_dict[z] = state[i].z
+      else:
+        for i, (c, h, z) in enumerate(model.initial_state):
+          feed_dict[c] = state[i].c
+          feed_dict[h] = state[i].h
+          feed_dict[z] = state[i].z
     else:
-      for i, (c, h, z) in enumerate(model.initial_state):
-        feed_dict[c] = state[i].c
-        feed_dict[h] = state[i].h
-        feed_dict[z] = state[i].z
+      if FLAGS.use_gru:
+        for i, h in enumerate(model.initial_state):
+          feed_dict[h] = state[i]
+      else:
+        for i, (c, h) in enumerate(model.initial_state):
+          feed_dict[c] = state[i].c
+          feed_dict[h] = state[i].h
     
     vals = session.run(fetches, feed_dict)
     cost = vals["cost"]
@@ -324,11 +340,20 @@ def main(_):
 
   if FLAGS.use_gru:
     print('using GRU')
+  if FLAGS.use_hm:
+    print('Using the hierarchical multiscale version of the model')
+  else:
+    print('Using the non-hierarchical multiscal version of the model')
     
   raw_data = reader.ptb_raw_data(FLAGS.data_path)
   train_data, valid_data, test_data, word_to_id = raw_data
 
   config = get_config()
+  if not FLAGS.use_dropout:
+    print('Not using dropout')
+    config.keep_prob = 1.0
+  else:
+    print('using dropout')
   eval_config = get_config()
   eval_config.batch_size = 1
   eval_config.num_steps = 1
