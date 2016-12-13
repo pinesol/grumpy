@@ -57,7 +57,7 @@ flags.DEFINE_bool("use_fp16", False,
 flags.DEFINE_bool("use_gru", False, "If True, GRU is used. Otherwise, LSTM is used")
 flags.DEFINE_bool("use_hm", True, "If set, the hierarchical multiscale version is used."
                   " Otherwise the regular RNN version is used.")
-flags.DEFINE_bool("use_dropout", False, "If set, it uses dropout")
+flags.DEFINE_bool("use_dropout", True, "If set, it uses dropout")
 
 FLAGS = flags.FLAGS
 
