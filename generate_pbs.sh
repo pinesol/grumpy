@@ -17,7 +17,7 @@ echo "
 #!/bin/bash
 
 #PBS -l nodes=1:ppn=2:gpus=1
-#PBS -l walltime=20:00:00
+#PBS -l walltime=24:00:00
 #PBS -l mem=25GB
 #PBS -N ${experiment_name}
 #PBS -j oe
