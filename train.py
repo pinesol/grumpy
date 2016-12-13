@@ -93,7 +93,7 @@ class PTBModel(object):
         rnn_cell = hm_rnn.HmGruCell(size)
       else:
         rnn_cell = hm_rnn.HmLstmCell(size)
-      if is_training and config.keep_prob < 1:
+      if is_training and FLAGS.use_dropout and config.keep_prob < 1:
         rnn_cell = tf.nn.rnn_cell.DropoutWrapper(rnn_cell, output_keep_prob=config.keep_prob)
       cell = hm_rnn.MultiHmRNNCell([rnn_cell] * config.num_layers, size)
     else:
@@ -101,7 +101,7 @@ class PTBModel(object):
         rnn_cell = tf.nn.rnn_cell.GRUCell(size)
       else:
         rnn_cell = tf.nn.rnn_cell.BasicLSTMCell(size, forget_bias=0.0, state_is_tuple=True)
-      if is_training and config.keep_prob < 1:
+      if is_training and FLAGS.use_dropout and config.keep_prob < 1:
         rnn_cell = tf.nn.rnn_cell.DropoutWrapper(rnn_cell, output_keep_prob=config.keep_prob)
       cell = tf.nn.rnn_cell.MultiRNNCell([rnn_cell] * config.num_layers, state_is_tuple=True)
     
@@ -112,7 +112,7 @@ class PTBModel(object):
           "embedding", [vocab_size, size], dtype=data_type())
       inputs = tf.nn.embedding_lookup(self._embedding, input_.input_data)
 
-    if is_training and config.keep_prob < 1:
+    if is_training and FLAGS.use_dropout and config.keep_prob < 1:
       inputs = tf.nn.dropout(inputs, config.keep_prob)
 
     outputs = []
@@ -357,7 +357,7 @@ def main(_):
   eval_config = get_config()
   eval_config.batch_size = 1
   eval_config.num_steps = 1
-
+  
   with tf.Graph().as_default():
     initializer = tf.random_uniform_initializer(-config.init_scale,
                                                 config.init_scale)
