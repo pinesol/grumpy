@@ -371,7 +371,7 @@ class MultiHmRNNCell(tf.nn.rnn_cell.RNNCell):
       for i, cell in enumerate(self._cells):
         with vs.variable_scope("Cell%d" % i):
           new_h, new_state = cell(current_input, state[i]) # state[i] = c_prev, h_prev, z_prev
-          assert new_h == new_state.h
+          #assert new_h == new_state.h # This isn't true if dropout is enabled
           # Set up the inputs for the next cell.
           if i < len(self._cells) - 2:
             # Next cell is not the top one.
