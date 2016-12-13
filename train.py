@@ -286,7 +286,7 @@ def run_epoch(session, model, eval_op=None, verbose=False):
     feed_dict = {}
     if FLAGS.use_hm:
       if FLAGS.use_gru:
-        for i, h, z in enumerate(model.initial_state):
+        for i, (h, z) in enumerate(model.initial_state):
           feed_dict[h] = state[i].h
           feed_dict[z] = state[i].z
       else:

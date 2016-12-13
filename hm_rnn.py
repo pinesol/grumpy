@@ -159,8 +159,10 @@ class HmGruCell(tf.nn.rnn_cell.RNNCell):
     h_prev, z_prev = state
 
     # I'm calling the the 'z gate' in GRU the 'o gate', since z means something different in HM-LSTM.
-    # r, o, g, z_stochastic_tilda
-    num_rows = 3 * self._num_units + 1
+    # Not including the candidate hidden state (c_tilda, or g as I call it, since it needs to be
+    # multiplied by r first.
+    # Need enough rows in the shared matrix for r, o, z_stochastic_tilda
+    num_rows = 2 * self._num_units + 1
 
     # scope: optional name for the variable scope, defaults to "HmGruCell"
     with vs.variable_scope(scope or type(self).__name__):
@@ -181,18 +183,30 @@ class HmGruCell(tf.nn.rnn_cell.RNNCell):
 
       r_logits = tf.slice(gate_logits, [0, 0], [-1, self._num_units])
       o_logits = tf.slice(gate_logits, [0, self._num_units], [-1, self._num_units])
-      g_logits = tf.slice(gate_logits, [0, 2*self._num_units], [-1, self._num_units])
-      z_t_logit = tf.slice(gate_logits, [0, 3*self._num_units], [-1, 1])
+      z_t_logit = tf.slice(gate_logits, [0, 2*self._num_units], [-1, 1])
       
       r = tf.sigmoid(r_logits)
       o = tf.sigmoid(o_logits)
-      g = tf.tanh(g_logits * r) # TODO TODO TODO untested and probably wrong!
-
       # This is the stochastic neuron
       z_new = binary_wrapper(z_t_logit,
                              pass_through=False, # TODO make this true if you do slope annealing
                              stochastic_tensor=tf.constant(True), # TODO make this false if you do slope annealing
                              slope_tensor=None) # TODO set this if you do slope annealing
+      
+      # Now calculate the candidate gate (c_tilda aka g)
+      # Matrix U_l^l (for just g)
+      U_g_curr = vs.get_variable("U_g_curr", [h_prev.get_shape()[1], self._num_units], dtype=tf.float32)
+      # Matrix U_{l+1}^l (for just g)
+      U_g_top = vs.get_variable("U_g_top", [h_bottom.get_shape()[1], self._num_units], dtype=tf.float32)
+      # Matrix W_{l-1}^l (for just g)
+      W_g_bottom = vs.get_variable("W_g_bottom", [h_bottom.get_shape()[1], self._num_units], dtype=tf.float32)
+      # b_l (for just g)
+      bias_g = vs.get_variable("bias_g", [self._num_units], dtype=tf.float32)
+      s_g_curr = tf.matmul(r * h_prev, U_g_curr)
+      s_g_top = z_prev * tf.matmul(r * h_top_prev, U_g_top)
+      s_g_bottom = z_bottom * tf.matmul(r * h_bottom, W_g_bottom)
+      g_logits = s_g_curr + s_g_top + s_g_bottom + bias_g
+      g = tf.tanh(g_logits)
 
       z_zero_mask = tf.equal(z_prev, tf.zeros_like(z_prev))
       copy_mask = tf.to_float(tf.logical_and(z_zero_mask, tf.equal(z_bottom, tf.zeros_like(z_bottom))))
@@ -202,8 +216,6 @@ class HmGruCell(tf.nn.rnn_cell.RNNCell):
 # TODO put this behind a test flag
 #      tf.assert_equal(tf.reduce_sum(copy_mask + update_mask + flush_mask),
 #                      tf.reduce_sum(tf.ones_like(flush_mask))) # TODO
-
-      # TODO untested and not thought through!
       h_flush = o * g
       h_update = (tf.ones_like(o) - o) * h_prev + h_flush
       h_new = copy_mask * h_prev + update_mask * h_update + flush_mask * h_flush
@@ -256,6 +268,7 @@ class HmLstmCell(tf.nn.rnn_cell.RNNCell):
     # vars from the previous time step on the same layer
     c_prev, h_prev, z_prev = state
 
+    # Need enough rows in the shared matrix for f, i, o, g, z_stochastic_tilda
     num_rows = 4 * self._num_units + 1
 
     # scope: optional name for the variable scope, defaults to "HmLstmCell"
