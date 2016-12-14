@@ -58,6 +58,8 @@ flags.DEFINE_bool("use_gru", False, "If True, GRU is used. Otherwise, LSTM is us
 flags.DEFINE_bool("use_hm", True, "If set, the hierarchical multiscale version is used."
                   " Otherwise the regular RNN version is used.")
 flags.DEFINE_bool("use_dropout", True, "If set, it uses dropout")
+flags.DEFINE_bool("gru_mod", False, "If set, the 'lessr' version of HM-GRU is used.")
+
 
 FLAGS = flags.FLAGS
 
@@ -205,7 +207,7 @@ class SmallConfig(object):
 class SmallGRUConfig(object):
   """Small config for GRU."""
   init_scale = 0.1
-  learning_rate = 0.7 # Decreased this from 1.0
+  learning_rate = 0.7 # TODO was 1.0
   max_grad_norm = 5
   num_layers = 3
   num_steps = 20
@@ -234,6 +236,21 @@ class MediumConfig(object):
   batch_size = 20
   vocab_size = 10000
 
+class MediumGRUConfig(object):
+  """Medium config."""
+  init_scale = 0.05
+  learning_rate = 0.7  # TODO was 1.0
+  max_grad_norm = 5
+  num_layers = 3
+  num_steps = 35
+  hidden_size = 512
+  max_epoch = 6
+  max_max_epoch = 39
+  keep_prob = 0.5
+  lr_decay = 0.8
+  batch_size = 20
+  vocab_size = 10000
+
 
 class LargeConfig(object):
   """Large config."""
@@ -250,6 +267,20 @@ class LargeConfig(object):
   batch_size = 20
   vocab_size = 10000
 
+class LargeGRUConfig(object):
+  """Large config."""
+  init_scale = 0.04
+  learning_rate = 0.7 # TODO was 1.0
+  max_grad_norm = 10
+  num_layers = 3
+  num_steps = 35
+  hidden_size = 1024
+  max_epoch = 14
+  max_max_epoch = 55
+  keep_prob = 0.35
+  lr_decay = 1 / 1.15
+  batch_size = 20
+  vocab_size = 10000
 
 class TestConfig(object):
   """Tiny config, for testing."""
@@ -325,9 +356,15 @@ def get_config():
     else:
       return SmallConfig()
   elif FLAGS.model == "medium":
-    return MediumConfig()
+    if FLAGS.use_gru:
+      return MediumGRUConfig()
+    else:
+      return MediumConfig()
   elif FLAGS.model == "large":
-    return LargeConfig()
+    if FLAGS.use_gru:
+      return LargeGRUConfig()
+    else:
+      return LargeConfig()
   elif FLAGS.model == "test":
     return TestConfig()
   else:
@@ -339,11 +376,17 @@ def main(_):
     raise ValueError("Must set --data_path to PTB data directory")
 
   if FLAGS.use_gru:
-    print('using GRU')
+    print('Using GRU')
+    if FLAGS.gru_mod:
+      print("Using the 'lessr' version of HM-GRU")
+    else:
+      print("Using the original version of HM-GRU")
+  else:
+    print('using LSTM')
   if FLAGS.use_hm:
     print('Using the hierarchical multiscale version of the model')
   else:
-    print('Using the non-hierarchical multiscal version of the model')
+    print('Using the non-hierarchical multiscale version of the model')
     
   raw_data = reader.ptb_raw_data(FLAGS.data_path)
   train_data, valid_data, test_data, word_to_id = raw_data
