@@ -58,6 +58,7 @@ flags.DEFINE_bool("use_gru", False, "If True, GRU is used. Otherwise, LSTM is us
 flags.DEFINE_bool("use_hm", True, "If set, the hierarchical multiscale version is used."
                   " Otherwise the regular RNN version is used.")
 flags.DEFINE_bool("use_dropout", True, "If set, it uses dropout")
+flags.DEFINE_integer("max_max_epoch", None, "If set, override the config's max_max_epoch value.")
 
 
 FLAGS = flags.FLAGS
@@ -349,26 +350,31 @@ def run_epoch(session, model, eval_op=None, verbose=False):
 
 
 def get_config():
+  config = None
   if FLAGS.model == "small":
     if FLAGS.use_gru:
-      return SmallGRUConfig()
+      config = SmallGRUConfig()
     else:
-      return SmallConfig()
+      config = SmallConfig()
   elif FLAGS.model == "medium":
     if FLAGS.use_gru:
-      return MediumGRUConfig()
+      config = MediumGRUConfig()
     else:
-      return MediumConfig()
+      config = MediumConfig()
   elif FLAGS.model == "large":
     if FLAGS.use_gru:
-      return LargeGRUConfig()
+      config = LargeGRUConfig()
     else:
-      return LargeConfig()
+      config = LargeConfig()
   elif FLAGS.model == "test":
-    return TestConfig()
+    config = TestConfig()
   else:
     raise ValueError("Invalid model: %s", FLAGS.model)
-  
+  if FLAGS.max_max_epoch is not None:
+    print('Setting max_max_epoch to flag value of {}'.format(FLAGS.max_max_epoch))
+    config.max_max_epoch = FLAGS.max_max_epoch
+  return config
+
   
 def main(_):
   if not FLAGS.data_path:
