@@ -58,7 +58,6 @@ flags.DEFINE_bool("use_gru", False, "If True, GRU is used. Otherwise, LSTM is us
 flags.DEFINE_bool("use_hm", True, "If set, the hierarchical multiscale version is used."
                   " Otherwise the regular RNN version is used.")
 flags.DEFINE_bool("use_dropout", True, "If set, it uses dropout")
-flags.DEFINE_bool("gru_mod", False, "If set, the 'lessr' version of HM-GRU is used.")
 
 
 FLAGS = flags.FLAGS
@@ -377,10 +376,6 @@ def main(_):
 
   if FLAGS.use_gru:
     print('Using GRU')
-    if FLAGS.gru_mod:
-      print("Using the 'lessr' version of HM-GRU")
-    else:
-      print("Using the original version of HM-GRU")
   else:
     print('using LSTM')
   if FLAGS.use_hm:

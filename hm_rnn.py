@@ -203,14 +203,8 @@ class HmGruCell(tf.nn.rnn_cell.RNNCell):
       # b_l (for just g)
       bias_g = vs.get_variable("bias_g", [self._num_units], dtype=tf.float32)
       s_g_curr = tf.matmul(r * h_prev, U_g_curr)
-
-      # TODO remove flag usage once architecture is finalized
-      if tf.flags.FLAGS.gru_mod:
-          s_g_top = z_prev * tf.matmul(h_top_prev, U_g_top)
-          s_g_bottom = z_bottom * tf.matmul(h_bottom, W_g_bottom)
-      else:
-          s_g_top = z_prev * tf.matmul(r * h_top_prev, U_g_top)
-          s_g_bottom = z_bottom * tf.matmul(r * h_bottom, W_g_bottom)          
+      s_g_top = z_prev * tf.matmul(r * h_top_prev, U_g_top)
+      s_g_bottom = z_bottom * tf.matmul(r * h_bottom, W_g_bottom)
       g_logits = s_g_curr + s_g_top + s_g_bottom + bias_g
       g = tf.tanh(g_logits)
 
