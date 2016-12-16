@@ -59,7 +59,7 @@ flags.DEFINE_bool("use_hm", True, "If set, the hierarchical multiscale version i
                   " Otherwise the regular RNN version is used.")
 flags.DEFINE_bool("use_dropout", True, "If set, it uses dropout")
 flags.DEFINE_integer("max_max_epoch", None, "If set, override the config's max_max_epoch value.")
-
+flags.DEFINE_integer("num_steps", None, "If set, override the config's num_steps value.")
 
 FLAGS = flags.FLAGS
 
@@ -213,8 +213,7 @@ class SmallGRUConfig(object):
   num_steps = 20
   hidden_size = 256
   max_epoch = 4
-#  max_max_epoch = 13
-  max_max_epoch = 6 # TODO
+  max_max_epoch = 6
   keep_prob = 1.0
   lr_decay = 0.5
   batch_size = 20
@@ -239,7 +238,7 @@ class MediumConfig(object):
 class MediumGRUConfig(object):
   """Medium config."""
   init_scale = 0.05
-  learning_rate = 0.7  # TODO was 1.0
+  learning_rate = 0.7  # was 1.0. 0.7 works better.
   max_grad_norm = 5
   num_layers = 3
   num_steps = 35
@@ -270,7 +269,7 @@ class LargeConfig(object):
 class LargeGRUConfig(object):
   """Large config."""
   init_scale = 0.04
-  learning_rate = 0.7 # TODO was 1.0
+  learning_rate = 0.7 # was 1.0. 0.7 works better.
   max_grad_norm = 10
   num_layers = 3
   num_steps = 35
@@ -373,6 +372,9 @@ def get_config():
   if FLAGS.max_max_epoch is not None:
     print('Setting max_max_epoch to flag value of {}'.format(FLAGS.max_max_epoch))
     config.max_max_epoch = FLAGS.max_max_epoch
+  if FLAGS.num_steps:
+    print('Setting the number of timesteps (num_steps) to flag value of {}'.format(FLAGS.num_steps))
+    config.num_steps = FLAGS.num_steps
   return config
 
   
