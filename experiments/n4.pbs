@@ -1,0 +1,20 @@
+
+#!/bin/bash
+
+#PBS -l nodes=1:ppn=2:gpus=1
+#PBS -l walltime=20:00:00
+#PBS -l mem=25GB
+#PBS -N n4
+#PBS -j oe
+#PBS -M sdr375@nyu.edu
+#PBS -m ae
+
+module purge
+module load pillow/intel/2.7.0
+module load tensorflow/python2.7/20161029
+module load scipy/intel/0.18.0
+
+cd /scratch/sdr375/grumpy
+python train.py --save_path=save_dir/n4_1212194234 --data_path=data/not_tagged/ --use_hm --use_gru --model=medium
+
+
