@@ -1,6 +1,6 @@
 
 import tensorflow as tf
-import reader
+import reader_1
 import os
 
 FLAGS = tf.flags.FLAGS
