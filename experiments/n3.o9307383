@@ -1,0 +1,34 @@
+
+I tensorflow/stream_executor/dso_loader.cc:125] successfully opened CUDA library libcurand.so.7.5 locally
+I tensorflow/stream_executor/dso_loader.cc:125] successfully opened CUDA library libcuda.so.1 locally
+I tensorflow/stream_executor/dso_loader.cc:125] successfully opened CUDA library libcufft.so.7.5 locally
+I tensorflow/stream_executor/dso_loader.cc:125] successfully opened CUDA library libcudnn.so.5.1.3 locally
+I tensorflow/stream_executor/dso_loader.cc:125] successfully opened CUDA library libcublas.so.7.5 locally
+/home/sdr375/.local/lib/python2.7/site-packages/google/protobuf/__init__.py:37: UserWarning: Module tensorflow was already imported from /share/apps/tensorflow/20161029/python2.7/lib/python2.7/site-packages/tensorflow/__init__.pyc, but /home/sdr375/.local/lib/python2.7/site-packages is being added to sys.path
+  __import__('pkg_resources').declare_namespace(__name__)
+Using the hierarchical multiscale version of the model
+Reading in data...
+Traceback (most recent call last):
+  File "train.py", line 413, in <module>
+    tf.app.run()
+  File "/share/apps/tensorflow/20161029/python2.7/lib/python2.7/site-packages/tensorflow/python/platform/app.py", line 43, in run
+    sys.exit(main(sys.argv[:1] + flags_passthrough))
+  File "train.py", line 348, in main
+    raw_data = reader.ptb_raw_data(FLAGS.data_path)
+  File "/scratch/sdr375/grumpy/reader.py", line 73, in ptb_raw_data
+    word_to_id = _build_vocab(train_path)
+  File "/scratch/sdr375/grumpy/reader.py", line 34, in _build_vocab
+    data = _read_words(filename)
+  File "/scratch/sdr375/grumpy/reader.py", line 30, in _read_words
+    return f.read().decode("utf-8").replace("\n", "<eos>").split()
+  File "/share/apps/tensorflow/20161029/python2.7/lib/python2.7/site-packages/tensorflow/python/lib/io/file_io.py", line 106, in read
+    self._preread_check()
+  File "/share/apps/tensorflow/20161029/python2.7/lib/python2.7/site-packages/tensorflow/python/lib/io/file_io.py", line 73, in _preread_check
+    compat.as_bytes(self.__name), 1024 * 512, status)
+  File "/share/apps/python/2.7.6/intel/lib/python2.7/contextlib.py", line 24, in __exit__
+    self.gen.next()
+  File "/share/apps/tensorflow/20161029/python2.7/lib/python2.7/site-packages/tensorflow/python/framework/errors.py", line 463, in raise_exception_on_not_ok_status
+    pywrap_tensorflow.TF_GetCode(status))
+tensorflow.python.framework.errors.NotFoundError: data/untagged/train.txt
+
+

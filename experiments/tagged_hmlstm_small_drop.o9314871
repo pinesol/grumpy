@@ -1,0 +1,204 @@
+
+I tensorflow/stream_executor/dso_loader.cc:125] successfully opened CUDA library libcurand.so.7.5 locally
+I tensorflow/stream_executor/dso_loader.cc:125] successfully opened CUDA library libcuda.so.1 locally
+I tensorflow/stream_executor/dso_loader.cc:125] successfully opened CUDA library libcufft.so.7.5 locally
+I tensorflow/stream_executor/dso_loader.cc:125] successfully opened CUDA library libcudnn.so.5.1.3 locally
+I tensorflow/stream_executor/dso_loader.cc:125] successfully opened CUDA library libcublas.so.7.5 locally
+/home/sdr375/.local/lib/python2.7/site-packages/google/protobuf/__init__.py:37: UserWarning: Module tensorflow was already imported from /share/apps/tensorflow/20161029/python2.7/lib/python2.7/site-packages/tensorflow/__init__.pyc, but /home/sdr375/.local/lib/python2.7/site-packages is being added to sys.path
+  __import__('pkg_resources').declare_namespace(__name__)
+I tensorflow/core/common_runtime/gpu/gpu_device.cc:944] Found device 0 with properties: 
+name: Tesla K80
+major: 3 minor: 7 memoryClockRate (GHz) 0.8235
+pciBusID 0000:08:00.0
+Total memory: 11.25GiB
+Free memory: 11.13GiB
+I tensorflow/core/common_runtime/gpu/gpu_device.cc:965] DMA: 0 
+I tensorflow/core/common_runtime/gpu/gpu_device.cc:975] 0:   Y 
+I tensorflow/core/common_runtime/gpu/gpu_device.cc:1034] Creating TensorFlow device (/gpu:0) -> (device: 0, name: Tesla K80, pci bus id: 0000:08:00.0)
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:*******************************************************
+WARNING:tensorflow:TensorFlow's V1 checkpoint format is deprecated; V2 will become the default shortly after 10/31/2016.
+WARNING:tensorflow:Consider switching to the more efficient V2 format now:
+WARNING:tensorflow:   `tf.train.Saver(write_version=tf.train.SaverDef.V2)`
+WARNING:tensorflow:to prevent breakage.
+WARNING:tensorflow:*******************************************************
+Using the hierarchical multiscale version of the model
+Reading in data...
+using dropout
+Building training model...
+Trainable variables:
+[u'Model/embedding:0', u'Model/RNN/MultiHmRNNCell/Cell0/HmLstmCell/U_curr:0', u'Model/RNN/MultiHmRNNCell/Cell0/HmLstmCell/U_top:0', u'Model/RNN/MultiHmRNNCell/Cell0/HmLstmCell/W_bottom:0', u'Model/RNN/MultiHmRNNCell/Cell0/HmLstmCell/bias:0', u'Model/RNN/MultiHmRNNCell/Cell1/HmLstmCell/U_curr:0', u'Model/RNN/MultiHmRNNCell/Cell1/HmLstmCell/U_top:0', u'Model/RNN/MultiHmRNNCell/Cell1/HmLstmCell/W_bottom:0', u'Model/RNN/MultiHmRNNCell/Cell1/HmLstmCell/bias:0', u'Model/RNN/MultiHmRNNCell/Cell2/HmLstmCell/U_curr:0', u'Model/RNN/MultiHmRNNCell/Cell2/HmLstmCell/U_top:0', u'Model/RNN/MultiHmRNNCell/Cell2/HmLstmCell/W_bottom:0', u'Model/RNN/MultiHmRNNCell/Cell2/HmLstmCell/bias:0', u'Model/RNN/MultiHmRNNCell/Output/w0:0', u'Model/RNN/MultiHmRNNCell/Output/W0:0', u'Model/RNN/MultiHmRNNCell/Output/w1:0', u'Model/RNN/MultiHmRNNCell/Output/W1:0', u'Model/RNN/MultiHmRNNCell/Output/w2:0', u'Model/RNN/MultiHmRNNCell/Output/W2:0', u'Model/softmax_w:0', u'Model/softmax_b:0']
+Building validation model...
+Building testing model...
+Epoch: 1 Learning rate: 0.700
+0.001 perplexity: 4966.934 speed: 682 wps
+0.101 perplexity: 93.842 speed: 2547 wps
+0.201 perplexity: 67.735 speed: 2704 wps
+0.301 perplexity: 56.996 speed: 2757 wps
+0.401 perplexity: 51.711 speed: 2785 wps
+0.501 perplexity: 48.280 speed: 2765 wps
+0.601 perplexity: 45.650 speed: 2767 wps
+0.701 perplexity: 43.478 speed: 2778 wps
+0.801 perplexity: 42.103 speed: 2788 wps
+0.901 perplexity: 40.830 speed: 2796 wps
+Epoch: 1 Train Perplexity: 39.837
+Epoch: 1 Train Time: 20.510 minutes
+Epoch: 1 Valid Perplexity: 49.731
+Epoch: 2 Learning rate: 0.700
+0.001 perplexity: 26.234 speed: 2827 wps
+0.101 perplexity: 30.585 speed: 2857 wps
+0.201 perplexity: 30.176 speed: 2843 wps
+0.301 perplexity: 29.096 speed: 2847 wps
+0.401 perplexity: 28.620 speed: 2771 wps
+0.501 perplexity: 28.209 speed: 2785 wps
+0.601 perplexity: 27.855 speed: 2796 wps
+0.701 perplexity: 27.476 speed: 2801 wps
+0.801 perplexity: 27.303 speed: 2807 wps
+0.901 perplexity: 27.066 speed: 2772 wps
+Epoch: 2 Train Perplexity: 26.935
+Epoch: 2 Train Time: 20.445 minutes
+Epoch: 2 Valid Perplexity: 46.184
+Epoch: 3 Learning rate: 0.700
+0.001 perplexity: 22.728 speed: 2851 wps
+0.101 perplexity: 25.334 speed: 2850 wps
+0.201 perplexity: 25.263 speed: 2838 wps
+0.301 perplexity: 24.641 speed: 2726 wps
+0.401 perplexity: 24.516 speed: 2756 wps
+0.501 perplexity: 24.307 speed: 2770 wps
+0.601 perplexity: 24.048 speed: 2783 wps
+0.701 perplexity: 23.815 speed: 2790 wps
+0.801 perplexity: 23.744 speed: 2752 wps
+0.901 perplexity: 23.643 speed: 2760 wps
+Epoch: 3 Train Perplexity: 23.612
+Epoch: 3 Train Time: 20.524 minutes
+Epoch: 3 Valid Perplexity: 45.220
+Epoch: 4 Learning rate: 0.700
+0.001 perplexity: 22.221 speed: 2799 wps
+0.101 perplexity: 23.478 speed: 2851 wps
+0.201 perplexity: 23.055 speed: 2697 wps
+0.301 perplexity: 22.341 speed: 2743 wps
+0.401 perplexity: 22.296 speed: 2766 wps
+0.501 perplexity: 22.134 speed: 2779 wps
+0.601 perplexity: 21.902 speed: 2789 wps
+0.701 perplexity: 21.709 speed: 2753 wps
+0.801 perplexity: 21.678 speed: 2764 wps
+0.901 perplexity: 21.565 speed: 2771 wps
+Epoch: 4 Train Perplexity: 21.519
+Epoch: 4 Train Time: 20.456 minutes
+Epoch: 4 Valid Perplexity: 43.076
+Epoch: 5 Learning rate: 0.700
+0.001 perplexity: 19.385 speed: 2334 wps
+0.101 perplexity: 21.317 speed: 2520 wps
+0.201 perplexity: 20.940 speed: 2669 wps
+0.301 perplexity: 20.443 speed: 2718 wps
+0.401 perplexity: 20.378 speed: 2749 wps
+0.501 perplexity: 20.297 speed: 2713 wps
+0.601 perplexity: 20.148 speed: 2727 wps
+0.701 perplexity: 20.103 speed: 2742 wps
+0.801 perplexity: 20.141 speed: 2752 wps
+0.901 perplexity: 20.093 speed: 2762 wps
+Epoch: 5 Train Perplexity: 20.089
+Epoch: 5 Train Time: 20.758 minutes
+Epoch: 5 Valid Perplexity: 43.966
+Epoch: 6 Learning rate: 0.350
+0.001 perplexity: 25.139 speed: 2838 wps
+0.101 perplexity: 20.827 speed: 2819 wps
+0.201 perplexity: 19.944 speed: 2829 wps
+0.301 perplexity: 19.210 speed: 2828 wps
+0.401 perplexity: 18.953 speed: 2745 wps
+0.501 perplexity: 18.642 speed: 2762 wps
+0.601 perplexity: 18.317 speed: 2771 wps
+0.701 perplexity: 18.055 speed: 2780 wps
+0.801 perplexity: 17.934 speed: 2784 wps
+0.901 perplexity: 17.731 speed: 2750 wps
+Epoch: 6 Train Perplexity: 17.595
+Epoch: 6 Train Time: 20.600 minutes
+Epoch: 6 Valid Perplexity: 35.751
+Training complete! Total time: 2.257 hours
+Test Perplexity: 35.345
+Saving model to save_dir/tagged_hmlstm_small_drop_1213235534.
+
+
